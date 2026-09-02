@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Rescue Monitor</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+
+<body>
+
+<header class="topbar">
+
+    <div>
+        <h1>Rescue Monitor</h1>
+        <p>재난 구조 로봇 실시간 모니터링</p>
+    </div>
+
+    <div class="live-status">
+        <span class="live-dot"></span>
+        Live
+    </div>
+
+</header>
+
+
+<main>
+
+    <!-- ==================================================
+         상단 : 카메라 + 상태
+    =================================================== -->
+
+    <section class="hero-grid">
+
+        <!-- Camera -->
+
+        <div class="camera-card">
+
+            <div class="card-heading">
+
+                <div>
+                    <span class="eyebrow">
+                        LIVE CAMERA
+                    </span>
+
+                    <h2>
+                        현장 영상
+                    </h2>
+                </div>
+
+                <span class="live-pill">
+                    LIVE
+                </span>
+
+            </div>
+
+
+            <div class="camera-screen">
+
+                <img
+                    id="camera-stream"
+                    src="/video_feed"
+                    alt="실시간 카메라 영상"
+                >
+
+                
+
+            </div>
+
+        </div>
+
+
+        <!-- 오른쪽 상태 -->
+
+        <div class="status-column">
+
+            <!-- Robot -->
+
+            <div class="info-card">
+
+                <span class="eyebrow">
+                    ROBOT
+                </span>
+
+                <div
+                    id="robot-state"
+                    class="robot-state"
+                >
+                    준비 중
+                </div>
+
+                <div class="info-row">
+                    <span>현재 위치</span>
+
+                    <strong id="robot-position">
+                        -
+                    </strong>
+                </div>
+
+                <div class="info-row">
+                    <span>배터리</span>
+
+                    <strong id="battery">
+                        -
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <!-- Beacon -->
+
+            <div class="info-card">
+
+                <div class="card-title-row">
+
+                    <span class="eyebrow">
+                        BEACON
+                    </span>
+
+                    <button
+                        id="beacon-detail-button"
+                        class="link-button"
+                        type="button"
+                    >
+                        상세
+                    </button>
+
+                </div>
+
+                <div
+                    id="beacon-status"
+                    class="status-pill neutral"
+                >
+                    인식 불가
+                </div>
+
+                <div class="info-row">
+                    <span>패킷</span>
+
+                    <strong id="packet-status">
+                        STARTING
+                    </strong>
+                </div>
+
+                <div class="info-row">
+                    <span>LOCK</span>
+
+                    <strong id="packet-lock">
+                        UNLOCKED
+                    </strong>
+                </div>
+
+                <div class="info-row">
+                    <span>XYXY 검증 (4 tone)</span>
+
+                    <strong id="packet-metric">
+                        -
+                    </strong>
+                </div>
+
+                <div class="info-row">
+                    <span>방향 음량 (900/1050)</span>
+
+                    <strong id="packet-direction-metric">
+                        -
+                    </strong>
+                </div>
+
+                <div class="info-row">
+                    <span>방향</span>
+
+                    <strong id="beacon-direction">
+                        -
+                    </strong>
+                </div>
+
+                <div class="info-row">
+                    <span>추적</span>
+
+                    <strong id="tracking-status">
+                        대기
+                    </strong>
+                </div>
+
+                <div class="info-row">
+                    <span>거리</span>
+
+                    <strong id="uwb-distance">
+                        -
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <!-- Gas -->
+
+            <div class="info-card">
+
+                <span class="eyebrow">
+                    GAS
+                </span>
+
+                <div class="gas-number">
+
+                    <span id="gas-value">
+                        -
+                    </span>
+
+                    <small id="gas-unit"></small>
+
+                </div>
+
+                <div
+                    id="gas-risk"
+                    class="muted-text"
+                >
+                    센서 연결 예정
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ==================================================
+         구조 대상 요약
+    =================================================== -->
+
+    <section class="victim-summary-bar">
+
+        <div class="victim-summary-left">
+
+            <span class="eyebrow">
+                RESCUE TARGET
+            </span>
+
+            <strong>
+                구조 대상
+            </strong>
+
+        </div>
+
+
+        <div class="victim-summary-count">
+
+            <span class="person-dot"></span>
+
+            <span id="victim-count">
+                0
+            </span>
+
+            <span>
+                명 발견
+            </span>
+
+        </div>
+
+
+        <div
+            id="victim-list"
+            class="victim-list compact-victim-list"
+        >
+        </div>
+
+    </section>
+
+    <!-- ==================================================
+         Interactive ROS Map
+    =================================================== -->
+
+    <section class="content-card">
+
+        <div class="section-heading map-section-heading">
+
+            <div>
+                <span class="eyebrow">
+                    MAP
+                </span>
+
+                <h2>
+                    실시간 위치 및 이동 경로
+                </h2>
+            </div>
+
+
+            <div class="map-controls">
+
+                <button
+                    id="map-zoom-out"
+                    class="map-control-button"
+                    type="button"
+                    title="축소"
+                >
+                    −
+                </button>
+
+                <button
+                    id="map-reset"
+                    class="map-control-button map-reset-button"
+                    type="button"
+                >
+                    전체보기
+                </button>
+
+                <button
+                    id="map-zoom-in"
+                    class="map-control-button"
+                    type="button"
+                    title="확대"
+                >
+                    +
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div
+            id="map-viewer"
+            class="map-viewer"
+        >
+
+            <canvas
+                id="map-canvas"
+            ></canvas>
+
+            <div class="map-help">
+                휠로 확대 · 드래그로 이동
+            </div>
+
+            <div
+                id="map-popup"
+                class="map-popup hidden"
+            >
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ==================================================
+         최근 상황
+    =================================================== -->
+
+    <section class="content-card">
+
+        <div class="section-heading">
+
+            <div>
+                <span class="eyebrow">
+                    ACTIVITY
+                </span>
+
+                <h2>
+                    최근 상황
+                </h2>
+            </div>
+
+        </div>
+
+
+        <div
+            id="recent-events"
+            class="event-list"
+        >
+        </div>
+
+    </section>
+
+</main>
+
+
+<!-- ======================================================
+     구조 대상 발견 팝업
+======================================================= -->
+
+<div
+    id="victim-modal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="modal-accent danger-accent"></div>
+
+        <span class="eyebrow danger-text">
+            NEW TARGET
+        </span>
+
+        <h2>
+            구조 대상이 발견되었습니다.
+        </h2>
+
+        <p class="modal-description">
+            발견 위치가 지도에 자동으로 기록되었습니다.
+        </p>
+
+        <div
+            id="modal-victim-data"
+            class="modal-data"
+        >
+        </div>
+
+        <button
+            id="modal-close"
+            class="primary-button"
+            type="button"
+        >
+            확인
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- ======================================================
+     비콘 상세
+======================================================= -->
+
+<div
+    id="beacon-modal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="modal-accent blue-accent"></div>
+
+        <span class="eyebrow">
+            BEACON DETAIL
+        </span>
+
+        <h2>
+            비콘 기술 정보
+        </h2>
+
+
+        <div class="modal-data">
+
+            <div>
+                <span>비콘</span>
+                <strong>BEACON_1</strong>
+            </div>
+
+            <div>
+                <span>패턴</span>
+                <strong>XYXY</strong>
+            </div>
+
+            <div>
+                <span>X</span>
+                <strong>500 + 900 Hz</strong>
+            </div>
+
+            <div>
+                <span>Y</span>
+                <strong>650 + 1050 Hz</strong>
+            </div>
+
+            <div>
+                <span>UWB</span>
+                <strong>BU03</strong>
+            </div>
+
+            <div>
+                <span>현재 방향</span>
+
+                <strong id="detail-direction">
+                    -
+                </strong>
+            </div>
+
+        </div>
+
+
+        <button
+            id="beacon-modal-close"
+            class="secondary-button"
+            type="button"
+        >
+            닫기
+        </button>
+
+    </div>
+
+</div>
+
+
+<script src="/static/app.js"></script>
+
+</body>
+
+</html>

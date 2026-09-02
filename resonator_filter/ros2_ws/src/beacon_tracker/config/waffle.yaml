@@ -1,0 +1,328 @@
+# Platform profile: TurtleBot3 Waffle + NUC
+# OS/ROS: Ubuntu 22.04 / ROS 2 Humble
+# TurtleBot PC user/project: human / /home/human/resonator_filter
+uwb_range_node:
+  ros__parameters:
+    port: /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0
+    baudrate: 115200
+    timeout_sec: 1.5
+    startup_delay_sec: 1.0
+    poll_interval_sec: 0.2
+    # Recover from a CH340/BU03 USB reset without stopping the launch.
+    reconnect_interval_sec: 2.0
+    hold_timeout_sec: 3.0
+    hold_epsilon_m: 0.03
+    range_topic: /uwb/range_m
+    status_topic: /uwb/status
+
+packet_lock_node:
+  ros__parameters:
+    detector_script: /home/human/resonator_filter/beacon1_lock_final.py
+    python_executable: python3
+    poll_interval_sec: 0.1
+    packet_topic: /beacon/packet_locked
+    status_topic: /beacon/packet_status
+    metric_topic: /beacon/packet_metric
+
+doa_angle_node:
+  ros__parameters:
+    packet_topic: /beacon/packet_locked
+    uwb_range_topic: /uwb/range_m
+    uwb_status_topic: /uwb/status
+    angle_topic: /beacon/doa_angle_rad
+    stable_topic: /beacon/doa_stable
+    metric_topic: /beacon/doa_metric
+    acoustic_range_m: 6.0
+    estimate_period_sec: 1.5
+
+# Generic map-coverage / UWB+XYXY evidence search.
+map_evidence_search_node:
+  ros__parameters:
+    search_enabled: false
+    map_frame: map
+    base_frame: base_link
+    map_topic: /map
+    # Remote-PC Nav2 costmap is the final live obstacle/footprint check before
+    # this node submits each generated coverage, entry, or interior goal.
+    nav_costmap_topic: /global_costmap/costmap_raw
+    require_nav_costmap: true
+    nav_costmap_max_cost: 252
+    require_nav_path_preflight: true
+    map_occupancy_threshold: 50
+    map_unknown_is_blocked: true
+    # Base-center prefilter only. Nav2 applies the full asymmetric SIPEED
+    # footprint; using a 0.50 m circle here would wrongly remove corridors.
+    # Folded rear arm reaches about 0.31 m from base_link; keep generated
+    # evidence waypoints away from walls before Nav2's exact footprint check.
+    robot_clearance_m: 0.31
+    coverage_spacing_m: 1.8
+    coverage_max_waypoints: 60
+    coverage_closed_space_first: true
+    zone_clearance_m: 0.60
+    portal_min_clearance_m: 0.25
+    portal_max_clearance_m: 0.65
+    minimum_zone_area_m2: 1.2
+    candidate_spacing_m: 0.50
+    waypoint_settle_sec: 1.0
+    evidence_window_sec: 8.0
+    min_evidence_waypoints: 4
+    evaluation_interval_waypoints: 6
+    max_range_sigma_m: 0.45
+    min_packet_valid_packets: 2
+    portal_evidence_radius_m: 1.5
+    # Do not use map-free cells near unobserved space as coverage goals or
+    # portal seeds. This filters SLAM scan gaps that can resemble doors.
+    coverage_unknown_clearance_m: 0.45
+    portal_unknown_clearance_m: 0.35
+    # Indoor closed-space survey: discard free space connected to the map
+    # border, then cover only the component containing base_link.
+    exclude_border_connected_free_space: true
+    # Initial mission phase: map-derived terminal/enclosed sections are visited
+    # before corridor/hub zones. All moving UWB/XYXY inputs are timestamped;
+    # repeated synchronized samples in one 0.6 m bin also become joint evidence.
+    # A single range spike cannot end collection. A stable three-second median
+    # must rise 1.0 m above the best stable median first.
+    initial_map_survey_enabled: true
+    survey_uwb_max_valid_range_m: 8.0
+    # Legacy absolute boundary retained for old log/config compatibility only.
+    survey_collection_stop_range_m: 8.0
+    survey_range_increase_m: 1.0
+    survey_departure_window_sec: 3.0
+    survey_departure_min_span_sec: 2.0
+    survey_departure_min_samples: 10
+    survey_departure_max_sigma_m: 0.45
+    survey_min_fresh_samples_per_waypoint: 3
+    survey_min_joint_waypoints: 4
+    survey_min_observed_zones: 2
+    survey_select_on_coverage_complete: true
+    survey_motion_logging_enabled: true
+    survey_motion_evidence_enabled: true
+    survey_motion_bin_m: 0.60
+    survey_motion_sync_window_sec: 3.0
+    survey_motion_bin_history_sec: 30.0
+    survey_motion_min_fresh_samples: 3
+    survey_motion_min_packets: 2
+    survey_extrema_max_distance_m: 3.0
+    # ReSpeaker DOA is not converted into a goal. After UWB FRESH + a full
+    # XYXY packet produce a clear map-section candidate, collect two stable
+    # bearings at separated safe poses and use them only to reweight section
+    # probability. Mapped wall/unknown crossings do not receive DOA support.
+    doa_fusion_enabled: true
+    doa_angle_topic: /beacon/doa_angle_rad
+    doa_stable_topic: /beacon/doa_stable
+    doa_metric_topic: /beacon/doa_metric
+    doa_fusion_weight: 0.20
+    doa_fusion_sigma_rad: 0.55
+    doa_fusion_require_line_of_sight: true
+    doa_probe_max_range_m: 6.0
+    doa_probe_min_base_probability: 0.55
+    doa_probe_min_base_margin: 0.08
+    doa_probe_timeout_sec: 8.0
+    doa_probe_min_stable_samples: 2
+    doa_probe_max_spread_rad: 0.349066
+    doa_probe_required_observations: 2
+    doa_probe_min_separation_m: 0.60
+    doa_probe_min_clearance_m: 0.60
+    doa_probe_max_attempts: 2
+    doa_observation_history_sec: 180.0
+    # ReSpeaker is enabled only after 1.5 s of TF-confirmed stationarity.
+    # General open space contributes 0.20*1.375=0.275; a one-sided open fan
+    # contributes only 0.20*0.625=0.125 to map-section probability.
+    doa_space_ray_step_deg: 10.0
+    doa_space_ray_max_range_m: 3.0
+    doa_space_min_wall_clearance_m: 0.60
+    doa_space_general_wall_clearance_m: 1.20
+    doa_space_open_depth_m: 1.50
+    doa_space_general_min_open_sectors: 4
+    doa_space_fan_width_deg: 120.0
+    doa_space_fan_center_depth_m: 2.0
+    doa_space_fan_min_open_ratio: 0.70
+    doa_space_general_confidence_weight: 1.375
+    doa_space_fan_confidence_weight: 0.625
+    doa_stationary_sec: 1.50
+    doa_stationary_position_tolerance_m: 0.03
+    doa_stationary_yaw_tolerance_rad: 0.052360
+    doa_metric_max_age_sec: 0.75
+    doa_min_active_tone_snr_db: 6.0
+    doa_min_music_peak_margin_db: 3.0
+    doa_max_srp_candidate_diff_deg: 20.0
+    # Waffle ReSpeaker pose must be calibrated on the NUC before deployment.
+    doa_sensor_x_m: 0.0
+    doa_sensor_y_m: 0.0
+    doa_sensor_yaw_rad: 0.0
+    max_coverage_cycles: 0
+    min_decision_margin: 0.12
+    min_audio_margin_db: 2.0
+    entry_staging_distance_m: 0.50
+    entry_interior_distance_m: 1.00
+    close_anchor_range_m: 0.90
+    close_anchor_max_sigma_m: 0.12
+    # packet_locked is already the full-XYXY detector's temporal lock. One
+    # validated metric inside the stationary window is enough to keep a
+    # stable <0.9 m observation in the same section for verification.
+    close_anchor_min_packets: 1
+    close_anchor_radius_m: 2.0
+    close_anchor_max_local_waypoints: 4
+    # After validated joint evidence, HOLD is tolerated for five seconds.
+    # Then map-safe XYXY amplitude comparison owns target priority until UWB
+    # remains continuously FRESH for three seconds.
+    uwb_navigation_loss_timeout_sec: 3.0
+    # A repeated BU03 value is HOLD after 3 s. Retain it for stationary
+    # evidence collection. During navigation, require it to persist for this
+    # additional duration before treating it as a stale/no-link condition.
+    uwb_navigation_allow_hold: false
+    uwb_navigation_hold_timeout_sec: 5.0
+    uwb_guard_min_valid_packets: 1
+    # While Nav2 moves after validated beacon evidence, stop and collect a
+    # fresh map sample only if the fully validated XYXY 900/1050-Hz median
+    # stays at least 6 dB weaker for 3 s after the robot has moved 0.4 m.
+    # This is a negative-route guard, not an acoustic steering controller.
+    xyxy_navigation_guard_enabled: true
+    xyxy_navigation_drop_db: 6.0
+    xyxy_navigation_window_sec: 8.0
+    xyxy_navigation_min_samples: 2
+    xyxy_navigation_hold_sec: 3.0
+    xyxy_navigation_min_travel_m: 0.40
+    xyxy_navigation_reference_max_age_sec: 15.0
+    xyxy_navigation_recheck_delay_sec: 3.0
+    # HOLD/LOST recovery routes are rejected sooner than selected-room routes:
+    # after 0.3 m travel, a 2 dB drop sustained for 2 s skips that candidate.
+    xyxy_priority_route_drop_db: 2.0
+    xyxy_priority_route_hold_sec: 2.0
+    xyxy_priority_route_min_travel_m: 0.30
+    # Direct camera verification is allowed only after a fully validated
+    # XYXY packet and a continuous near UWB FRESH run.  This is a short,
+    # stationary confirmation; it does not use acoustic amplitude to steer.
+    yolo_xyxy_gate_enabled: true
+    yolo_xyxy_metric_max_age_sec: 10.0
+    yolo_uwb_fresh_sec: 2.0
+    yolo_uwb_min_fresh_samples: 3
+    yolo_activation_uwb_range_m: 3.0
+    yolo_verify_timeout_sec: 10.0
+    yolo_verify_rearm_sec: 15.0
+    # During HOLD/LOST, historical full-XYXY detections are the first-priority
+    # list. Known weaker branches are skipped and unmeasured map-safe points are
+    # ranked by expected increasing 900/1050-Hz level.
+    uwb_fresh_map_search_enabled: true
+    uwb_fresh_history_sec: 600.0
+    uwb_fresh_history_min_spacing_m: 0.35
+    uwb_fresh_map_search_max_waypoints: 12
+    uwb_fresh_map_search_min_goal_distance_m: 0.25
+    uwb_fresh_map_search_coverage_radius_m: 2.0
+    # Reorder only when the same loud map area is reproduced at least twice
+    # in the current degraded-search cycle. One reflected peak and historical
+    # peaks from older cycles cannot redirect the route.
+    uwb_fresh_map_search_reprioritize_min_packets: 2
+    uwb_fresh_map_search_reprioritize_margin_db: 3.0
+    uwb_fresh_map_search_reprioritize_min_repeats: 2
+    uwb_fresh_map_search_reprioritize_repeat_radius_m: 0.75
+    uwb_fresh_map_search_reprioritize_max_spread_db: 4.0
+    # Reject short NLOS-induced FRESH bursts. Recovery needs enough FRESH
+    # samples, low range variance, and range change consistent with odometry.
+    uwb_recovery_min_fresh_samples: 12
+    uwb_recovery_min_fresh_ratio: 0.60
+    uwb_recovery_max_sigma_m: 0.35
+    uwb_recovery_max_stationary_motion_m: 0.15
+    uwb_recovery_range_motion_margin_m: 0.35
+    uwb_recovery_range_status_sync_sec: 0.50
+    uwb_recovery_fresh_confirm_sec: 3.0
+    uwb_recovery_fresh_confirm_min_samples: 10
+    uwb_recovery_fresh_confirm_max_sigma_m: 0.35
+    xyxy_priority_history_bin_m: 0.50
+    xyxy_priority_min_gain_db: 1.0
+    # Do not immediately revisit the two points involved in an A<->B loop.
+    recent_goal_tabu_count: 2
+    recent_goal_tabu_sec: 45.0
+    recent_goal_tabu_radius_m: 0.45
+    # Avoid the entire recently visited map section, not only one XY point.
+    zone_cooldown_sec: 60.0
+    # Physical SIPEED XYXY microphone position relative to base_link.
+    # +X is TurtleBot forward.
+    sipeed_sensor_x_m: 0.25
+    sipeed_sensor_y_m: 0.0
+    # Live relative probability for every automatically segmented map section.
+    # JSON is for a terminal monitor; MarkerArray is displayed in Remote-PC RViz.
+    room_probability_topic: /beacon_search/room_probabilities
+    room_probability_marker_topic: /beacon_search/room_probability_markers
+    room_probability_publish_sec: 1.0
+    room_probability_temperature: 0.18
+    # Victim approach starts only when the depth-aware YOLO node provides a
+    # fresh map pose while UWB is FRESH/HOLD and at most 1.0 m. Nav2 stops at
+    # this standoff distance instead of driving into the person.
+    person_pose_topic: /beacon_search/person_pose
+    mission_complete_topic: /beacon_search/mission_complete
+    person_pose_timeout_sec: 2.0
+    person_uwb_enable_range_m: 1.0
+    person_depth_approach_enabled: true
+    person_depth_approach_min_m: 0.35
+    person_depth_approach_max_m: 3.0
+    person_approach_standoff_m: 0.80
+    person_arrival_tolerance_m: 0.30
+    output_dir: ~/resonator_filter/outputs
+
+evidence_diagnostics_logger_node:
+  ros__parameters:
+    output_dir: ~/resonator_filter/outputs
+    session_prefix: evidence_diagnostics
+    diagnostic_topic: /beacon_search/diagnostics
+    diagnostic_config_topic: /beacon_search/diagnostics_config
+    record_full_nav_paths: true
+    max_path_poses: 5000
+
+# NUC role: RealSense USB stays local.  This node sends only JPEG colour
+# frames to Jetson and preserves each camera header for local depth matching.
+camera_jpeg_relay_node:
+  ros__parameters:
+    color_topic: /camera/camera/color/image_raw
+    jetson_color_topic: /beacon_search/jetson/color/compressed
+    jpeg_quality: 50
+    # Keep NUC -> Jetson video real-time; the newest frame matters more than
+    # a complete 30 fps history for YOLO and the HTTP monitor.
+    max_fps: 10.0
+
+# NUC role: map-coordinate projection.  Keep these HTTP-compatible status
+# topics here because this node has the real local aligned depth and map TF.
+person_localizer_node:
+  ros__parameters:
+    enable_topic: /beacon_search/yolo_ready
+    uwb_range_topic: /uwb/range_m
+    uwb_status_topic: /uwb/status
+    uwb_enable_range_m: 3.0
+    detection_topic: /beacon_search/jetson/yolo_detection
+    depth_topic: /camera/camera/aligned_depth_to_color/image_raw
+    camera_info_topic: /camera/camera/color/camera_info
+    map_frame: map
+    depth_buffer_size: 30
+    depth_sync_tolerance_sec: 0.25
+    min_depth_m: 0.35
+    max_depth_m: 4.0
+    min_stable_detections: 3
+    max_target_spread_m: 0.45
+    safety_distance_m: 1.0
+    person_pose_topic: /beacon_search/person_pose
+    person_detected_topic: /beacon_search/person_detected
+    person_status_topic: /victim_detector/target_status
+    person_alert_topic: /person_alert_signal
+
+# Jetson role: YOLO + the existing HTTP image/count topics.  It has no
+# RealSense depth, TF, AMCL, Nav2 action or cmd_vel dependency.
+jetson_yolo_inference_node:
+  ros__parameters:
+    enable_topic: /beacon_search/yolo_ready
+    uwb_range_topic: /uwb/range_m
+    uwb_status_topic: /uwb/status
+    uwb_enable_range_m: 3.0
+    input_image_topic: /beacon_search/jetson/color/compressed
+    detection_topic: /beacon_search/jetson/yolo_detection
+    model_path: yolov8n.pt
+    device: auto
+    image_size: 320
+    # The NUC relay already bounds input to 10 fps. Infer each received frame
+    # so the HTTP overlay follows the camera instead of updating at ~3 fps.
+    process_every_n_frames: 1
+    confidence_threshold: 0.55
+    person_count_topic: /detected_person_count
+    debug_image_topic: /victim_detector/compressed
+    legacy_yolo_image_topic: /yolo/processed_image/compressed
+    publish_debug_image: true
+    debug_jpeg_quality: 50

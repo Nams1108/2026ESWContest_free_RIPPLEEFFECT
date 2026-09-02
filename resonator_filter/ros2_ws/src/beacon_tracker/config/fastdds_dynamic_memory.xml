@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Tailscale / Fast DDS profile shared by the Remote PC and TurtleBot PC.
+
+  Fast DDS normally has its memory policy overridden by rmw_fastrtps.  When
+  RMW_FASTRTPS_USE_QOS_FROM_XML=1 is set, these explicit dynamic histories
+  prevent a small preallocated reader history from rejecting a later message
+  whose serialized payload is larger (RTPS_READER_HISTORY errors).
+-->
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <data_writer profile_name="beacon_default_writer" is_default_profile="true">
+    <qos>
+      <publishMode>
+        <kind>ASYNCHRONOUS</kind>
+      </publishMode>
+    </qos>
+    <historyMemoryPolicy>DYNAMIC</historyMemoryPolicy>
+  </data_writer>
+
+  <data_reader profile_name="beacon_default_reader" is_default_profile="true">
+    <historyMemoryPolicy>DYNAMIC</historyMemoryPolicy>
+  </data_reader>
+</profiles>

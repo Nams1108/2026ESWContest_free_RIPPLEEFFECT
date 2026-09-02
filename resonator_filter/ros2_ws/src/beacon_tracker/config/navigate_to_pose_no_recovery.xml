@@ -1,0 +1,16 @@
+<!--
+  Map-evidence goals must fail back to the Python state machine immediately.
+  Deliberately omit Spin, BackUp, Wait and costmap-clearing recovery nodes.
+  Compatible with the TurtleBot Waffle's ROS 2 Humble Nav2 installation and
+  accepted by newer Nav2 releases as well.
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <PipelineSequence name="MapEvidenceNavigateWithoutRecovery">
+      <RateController hz="1.0">
+        <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+      </RateController>
+      <FollowPath path="{path}" controller_id="FollowPath"/>
+    </PipelineSequence>
+  </BehaviorTree>
+</root>
